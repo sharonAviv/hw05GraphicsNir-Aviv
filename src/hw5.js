@@ -107,11 +107,31 @@ function createHoop(xOffset) {
   const rimThickness = 0.05;
   const netLength = 0.5;
 
-  const direction = -1 *Math.sign(xOffset); // -1 for left, +1 for right
+  const direction = -1 * Math.sign(xOffset); // -1 for left, +1 for right
 
   const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
   const netMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
   const supportMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+
+  //
+  // SUPPORT POLE (now on courtside)
+  //
+  const poleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 4);
+  const pole = new THREE.Mesh(poleGeometry, supportMaterial);
+  pole.position.set(xOffset, 2, 0);
+  scene.add(pole);
+
+  //
+  // SUPPORT ARM (same length and direction as before)
+  //
+  const rimOffset = (backboardThickness / 2) + (rimThickness / 2) + 0.02;
+  const armLength = 0.4; // fixed value preserving 1/3 previous arm length
+  const armEndX = pole.position.x + direction * armLength;
+
+  const armStart = new THREE.Vector3(pole.position.x, yHeight + 0.5, 0);
+  const armEnd = new THREE.Vector3(armEndX, yHeight, 0);
+  const armGeo = new THREE.BufferGeometry().setFromPoints([armStart, armEnd]);
+  scene.add(new THREE.Line(armGeo, lineMaterial));
 
   //
   // BACKBOARD
@@ -124,7 +144,7 @@ function createHoop(xOffset) {
   });
   const backboard = new THREE.Mesh(backboardGeometry, backboardMaterial);
   backboard.rotation.y = -direction * Math.PI / 2;
-  backboard.position.set(xOffset, yHeight, 0);
+  backboard.position.set(armEndX, yHeight, 0);
   scene.add(backboard);
 
   //
@@ -134,9 +154,7 @@ function createHoop(xOffset) {
   const rimMaterial = new THREE.MeshPhongMaterial({ color: 0xff8c00 });
   const rim = new THREE.Mesh(rimGeometry, rimMaterial);
   rim.rotation.x = Math.PI / 2;
-
-  const rimOffset = (backboardThickness / 2) + (rimThickness / 2) + 0.02;
-  rim.position.set(xOffset - direction * rimOffset, yHeight - 0.15, 0);
+  rim.position.set(armEndX + direction * rimOffset * 7, yHeight - 0.15, 0);
   scene.add(rim);
 
   //
@@ -152,24 +170,8 @@ function createHoop(xOffset) {
     ]);
     scene.add(new THREE.Line(netGeo, netMaterial));
   }
-
-  //
-  // SUPPORT POLE
-  //
-  const poleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 4);
-  const pole = new THREE.Mesh(poleGeometry, supportMaterial);
-  pole.position.set(xOffset - direction * 1.2, 2, 0); // behind the backboard
-  scene.add(pole);
-
-  //
-  // SUPPORT ARM (connects pole to backboard)
-  //
-  const armGeo = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(pole.position.x, yHeight + 0.5, 0),
-    new THREE.Vector3(xOffset - direction * rimOffset, yHeight, 0)
-  ]);
-  scene.add(new THREE.Line(armGeo, lineMaterial));
 }
+
 
 
 createHoop(-15); // Left hoop
