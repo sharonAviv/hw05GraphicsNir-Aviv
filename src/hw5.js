@@ -1,4 +1,4 @@
-import {OrbitControls} from './OrbitControls.js'
+import { OrbitControls } from './OrbitControls.js'
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -6,55 +6,184 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
-// Set background color
 scene.background = new THREE.Color(0x000000);
 
-// Add lights to the scene
+// Lighting
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
 
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
 directionalLight.position.set(10, 20, 15);
-scene.add(directionalLight);
-
-// Enable shadows
-renderer.shadowMap.enabled = true;
 directionalLight.castShadow = true;
+scene.add(directionalLight);
+renderer.shadowMap.enabled = true;
 
-function degrees_to_radians(degrees) {
-  var pi = Math.PI;
-  return degrees * (pi/180);
-}
-
-// Create basketball court
+// Court builder
 function createBasketballCourt() {
-  // Court floor - just a simple brown surface
+  // Court base (30 x 15 = 2:1 ratio)
   const courtGeometry = new THREE.BoxGeometry(30, 0.2, 15);
-  const courtMaterial = new THREE.MeshPhongMaterial({ 
-    color: 0xc68642,  // Brown wood color
-    shininess: 50
-  });
+  const courtMaterial = new THREE.MeshPhongMaterial({ color: 0xc68642, shininess: 50 });
   const court = new THREE.Mesh(courtGeometry, courtMaterial);
   court.receiveShadow = true;
   scene.add(court);
-  
-  // Note: All court lines, hoops, and other elements have been removed
-  // Students will need to implement these features
+
+  const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+
+  // Center Line
+  const centerLineGeometry = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 0.11, -7.5),
+    new THREE.Vector3(0, 0.11, 7.5)
+  ]);
+  const centerLine = new THREE.Line(centerLineGeometry, lineMaterial);
+  scene.add(centerLine);
+
+  // Center Circle
+  const centerCircleRadius = 1.8;
+  const centerCircleSegments = 64;
+  const centerCirclePath = new THREE.Path();
+  centerCirclePath.absarc(0, 0, centerCircleRadius, 0, Math.PI * 2, false);
+  const centerCirclePoints = centerCirclePath.getPoints(centerCircleSegments);
+  const centerCircleGeometry = new THREE.BufferGeometry().setFromPoints(
+    centerCirclePoints.map(p => new THREE.Vector3(p.x, 0.11, p.y))
+  );
+  const centerCircle = new THREE.LineLoop(centerCircleGeometry, lineMaterial);
+  scene.add(centerCircle);
+
+  // Full Three-point lines (arc + 2 side lines)
+function createThreePointLine(xOffset) {
+  const radius = 6.75;
+  const sideOffset = 4.7;
+  const yHeight = 0.201;
+
+  const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+  const direction = -1 * Math.sign(xOffset);
+  const angle = Math.acos(sideOffset / radius);
+
+  // Arc: flipped horizontally
+  const arcCurve = new THREE.EllipseCurve(
+    -xOffset, 0,
+    radius, radius,
+    direction < 0 ? -angle : Math.PI - angle,
+    direction < 0 ? angle : Math.PI + angle,
+    false
+  );
+  const arcPoints = arcCurve.getPoints(64).map(p => new THREE.Vector3(p.x, yHeight, p.y));
+  const arcGeometry = new THREE.BufferGeometry().setFromPoints(arcPoints);
+  scene.add(new THREE.Line(arcGeometry, lineMaterial));
+
+  // Side lines
+  const sideZ1 = -sideOffset;
+  const sideZ2 = sideOffset;
+  const arcX =  xOffset + direction * radius * Math.cos(angle);
+
+  const leftSide = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(xOffset, yHeight, sideZ1),
+    new THREE.Vector3(arcX, yHeight, sideZ1)
+  ]);
+  scene.add(new THREE.Line(leftSide, lineMaterial));
+
+  const rightSide = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(arcX, yHeight, sideZ2),
+    new THREE.Vector3(xOffset, yHeight, sideZ2)
+  ]);
+  scene.add(new THREE.Line(rightSide, lineMaterial));
 }
 
-// Create all elements
+
+  createThreePointLine(-15); // Left
+  createThreePointLine(15);  // Right
+}
+
+// Build court
 createBasketballCourt();
 
-// Set camera position for better view
-const cameraTranslate = new THREE.Matrix4();
-cameraTranslate.makeTranslation(0, 15, 30);
+function createHoop(xOffset) {
+  const yHeight = 3.05; // 10 feet
+  const backboardWidth = 1.8;
+  const backboardHeight = 1.05;
+  const backboardThickness = 0.05;
+
+  const rimRadius = 0.45;
+  const rimThickness = 0.05;
+  const netLength = 0.5;
+
+  const direction = -1 *Math.sign(xOffset); // -1 for left, +1 for right
+
+  const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+  const netMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+  const supportMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+
+  //
+  // BACKBOARD
+  //
+  const backboardGeometry = new THREE.BoxGeometry(backboardWidth, backboardHeight, backboardThickness);
+  const backboardMaterial = new THREE.MeshPhongMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.6
+  });
+  const backboard = new THREE.Mesh(backboardGeometry, backboardMaterial);
+  backboard.rotation.y = -direction * Math.PI / 2;
+  backboard.position.set(xOffset, yHeight, 0);
+  scene.add(backboard);
+
+  //
+  // RIM
+  //
+  const rimGeometry = new THREE.TorusGeometry(rimRadius, rimThickness, 16, 100);
+  const rimMaterial = new THREE.MeshPhongMaterial({ color: 0xff8c00 });
+  const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+  rim.rotation.x = Math.PI / 2;
+
+  const rimOffset = (backboardThickness / 2) + (rimThickness / 2) + 0.02;
+  rim.position.set(xOffset - direction * rimOffset, yHeight - 0.15, 0);
+  scene.add(rim);
+
+  //
+  // NET (8 segments)
+  //
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const x1 = rim.position.x + Math.cos(angle) * rimRadius;
+    const z1 = rim.position.z + Math.sin(angle) * rimRadius;
+    const netGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(x1, rim.position.y, z1),
+      new THREE.Vector3(x1, rim.position.y - netLength, z1)
+    ]);
+    scene.add(new THREE.Line(netGeo, netMaterial));
+  }
+
+  //
+  // SUPPORT POLE
+  //
+  const poleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 4);
+  const pole = new THREE.Mesh(poleGeometry, supportMaterial);
+  pole.position.set(xOffset - direction * 1.2, 2, 0); // behind the backboard
+  scene.add(pole);
+
+  //
+  // SUPPORT ARM (connects pole to backboard)
+  //
+  const armGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(pole.position.x, yHeight + 0.5, 0),
+    new THREE.Vector3(xOffset - direction * rimOffset, yHeight, 0)
+  ]);
+  scene.add(new THREE.Line(armGeo, lineMaterial));
+}
+
+
+createHoop(-15); // Left hoop
+createHoop(15);  // Right hoop
+
+// Camera
+const cameraTranslate = new THREE.Matrix4().makeTranslation(0, 15, 30);
 camera.applyMatrix4(cameraTranslate);
 
-// Orbit controls
+// Controls
 const controls = new OrbitControls(camera, renderer.domElement);
 let isOrbitEnabled = true;
 
-// Instructions display
+// UI instructions
 const instructionsElement = document.createElement('div');
 instructionsElement.style.position = 'absolute';
 instructionsElement.style.bottom = '20px';
@@ -62,30 +191,24 @@ instructionsElement.style.left = '20px';
 instructionsElement.style.color = 'white';
 instructionsElement.style.fontSize = '16px';
 instructionsElement.style.fontFamily = 'Arial, sans-serif';
-instructionsElement.style.textAlign = 'left';
 instructionsElement.innerHTML = `
   <h3>Controls:</h3>
   <p>O - Toggle orbit camera</p>
 `;
 document.body.appendChild(instructionsElement);
 
-// Handle key events
-function handleKeyDown(e) {
+// Keyboard toggle
+document.addEventListener('keydown', (e) => {
   if (e.key === "o") {
     isOrbitEnabled = !isOrbitEnabled;
   }
-}
+});
 
-document.addEventListener('keydown', handleKeyDown);
-
-// Animation function
+// Animation loop
 function animate() {
   requestAnimationFrame(animate);
-  
-  // Update controls
   controls.enabled = isOrbitEnabled;
   controls.update();
-  
   renderer.render(scene, camera);
 }
 
