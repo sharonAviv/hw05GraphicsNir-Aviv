@@ -1,3 +1,4 @@
+// import * as THREE from 'three';
 import { OrbitControls } from './OrbitControls.js'
 
 const scene = new THREE.Scene();
@@ -6,7 +7,17 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
-scene.background = new THREE.Color(0x000000);
+
+// *** FIX 1a: Set renderer's output encoding for correct PBR color rendering ***
+// This is critical for the ball's MeshStandardMaterial to look correct.
+// However, it requires non-PBR materials' colors to be converted to linear space.
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; // Optional, but often improves PBR look
+renderer.toneMappingExposure = 1.2; // Adjust if the scene becomes too dark/bright after tone mapping
+
+// *** FIX 1b: Convert scene background color to linear if needed ***
+// If 0x000000 (black) was already black, converting won't change much.
+scene.background = new THREE.Color(0x000000).convertSRGBToLinear(); 
 
 // Lighting
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -21,13 +32,19 @@ renderer.shadowMap.enabled = true;
 // Court builder
 function createBasketballCourt() {
   // Court base (30 x 15 = 2:1 ratio)
+  // *** FIX 1c: Convert MeshPhongMaterial colors to linear ***
   const courtGeometry = new THREE.BoxGeometry(30, 0.2, 15);
-  const courtMaterial = new THREE.MeshPhongMaterial({ color: 0xc68642, shininess: 50 });
+  const courtMaterial = new THREE.MeshPhongMaterial({ 
+    color: new THREE.Color(0xc68642).convertSRGBToLinear(), // Convert court color
+    shininess: 50 
+  });
   const court = new THREE.Mesh(courtGeometry, courtMaterial);
   court.receiveShadow = true;
   scene.add(court);
 
-  const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+  // Line material (white lines)
+  // *** FIX 1c: Convert LineBasicMaterial colors to linear ***
+  const lineMaterial = new THREE.LineBasicMaterial({ color: new THREE.Color(0xffffff).convertSRGBToLinear() });
 
   // Center Line
   const centerLineGeometry = new THREE.BufferGeometry().setFromPoints([
@@ -109,9 +126,10 @@ function createHoop(xOffset) {
 
   const direction = -1 * Math.sign(xOffset); // -1 for left, +1 for right
 
-  const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
-  const netMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
-  const supportMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+ // *** FIX 1c: Convert LineBasicMaterial and MeshPhongMaterial colors to linear ***
+ const lineMaterial = new THREE.LineBasicMaterial({ color: new THREE.Color(0xffffff).convertSRGBToLinear() });
+ const netMaterial = new THREE.LineBasicMaterial({ color: new THREE.Color(0xffffff).convertSRGBToLinear() });
+ const supportMaterial = new THREE.MeshPhongMaterial({ color: new THREE.Color(0x888888).convertSRGBToLinear() });
 
   //
   // SUPPORT POLE (now on courtside)
@@ -206,50 +224,56 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Basketball with seams (no UV mapping)
+// Define the base path to your texture folder relative to your JS file
+const TEXTURE_PATH = '/src/basketball-classic-ball/Tex_Metal_Rough/';
+
+// 1. Load the textures
+const textureLoader = new THREE.TextureLoader();
+
+// Load the specific texture files you listed
+const colorMap = textureLoader.load(TEXTURE_PATH + 'basketballball_bball_Mat_BaseColor.jpg',
+    // *** FIX 2a: Add onLoad callback for debugging ***
+    () => { console.log('BaseColor texture loaded successfully!'); },
+    undefined, // onProgress callback (not needed for this fix)
+    (error) => { console.error('Error loading BaseColor texture:', error); } // onError callback
+);
+// *** FIX 2b: Set the color space for the base color map ***
+colorMap.colorSpace = THREE.SRGBColorSpace; // This is essential for the PBR texture's color to show correctly
+
+const normalMap = textureLoader.load(TEXTURE_PATH + 'basketballball_bball_Mat_Normal.jpg',
+    () => { console.log('Normal texture loaded successfully!'); },
+    undefined,
+    (error) => { console.error('Error loading Normal texture:', error); }
+);
+const roughnessMap = textureLoader.load(TEXTURE_PATH + 'basketballball_bball_Mat_Roughness.jpg',
+    () => { console.log('Roughness texture loaded successfully!'); },
+    undefined,
+    (error) => { console.error('Error loading Roughness texture:', error); }
+);
+
 const ballRadius = 0.123;
-const ballGeometry = new THREE.SphereGeometry(ballRadius, 32, 32);
-const ballMaterial = new THREE.MeshPhongMaterial({
-  color: 0xd35400,  // Basketball orange
-  shininess: 60
+// Increased segments for a smoother spherical appearance with the detailed textures
+const ballGeometry = new THREE.SphereGeometry(ballRadius, 64, 64);
+
+// 2. Create a MeshStandardMaterial (for PBR)
+const ballMaterial = new THREE.MeshStandardMaterial({
+    map: colorMap,          // Apply the base color texture (this includes the orange and black seams)
+    normalMap: normalMap,    // Apply the normal map for realistic surface bumps and seam depth
+    roughnessMap: roughnessMap, // Apply the roughness map for surface shininess/dullness variations
+    // metalnessMap: metallicMap, // Uncomment if you decide to use the metallic map for subtle effects
+    metalness: 0.0,         // Basketballs are not metallic, so set this to 0
+    // You can fine-tune roughness here if the map doesn't provide enough or you want a base level:
+    // roughness: 0.8, // This value will blend with the roughnessMap
 });
+
 const ball = new THREE.Mesh(ballGeometry, ballMaterial);
-ball.castShadow = true;
+ball.castShadow = true; // Essential if you plan to have lights cast shadows
+
+// Your current position setting, kept as requested
 ball.position.set(0, ballRadius + 0.1, 0); // On court
+
+// Add the ball to your scene (assuming 'scene' is defined elsewhere in your code)
 scene.add(ball);
-
-// Black seam material
-const seamMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
-
-// Helper: creates a circle of given radius in given plane
-function createSeamCircle(radius, segments, axis) {
-  const points = [];
-  for (let i = 0; i <= segments; i++) {
-    const theta = (i / segments) * Math.PI * 2;
-    const x = Math.cos(theta) * radius;
-    const y = Math.sin(theta) * radius;
-
-    if (axis === 'x') points.push(new THREE.Vector3(0, x, y));
-    else if (axis === 'y') points.push(new THREE.Vector3(x, 0, y));
-    else points.push(new THREE.Vector3(x, y, 0)); // 'z'
-  }
-  const geometry = new THREE.BufferGeometry().setFromPoints(points);
-  return new THREE.LineLoop(geometry, seamMaterial);
-}
-
-// Add 3 seam circles: around x, y, and z axes
-const seamX = createSeamCircle(ballRadius, 64, 'x');
-const seamY = createSeamCircle(ballRadius, 64, 'y');
-const seamZ = createSeamCircle(ballRadius, 64, 'z');
-
-// Position them same as ball
-seamX.position.copy(ball.position);
-seamY.position.copy(ball.position);
-seamZ.position.copy(ball.position);
-
-scene.add(seamX);
-scene.add(seamY);
-scene.add(seamZ);
 
 // Animation loop
 function animate() {

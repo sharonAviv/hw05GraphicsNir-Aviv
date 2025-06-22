@@ -1,0 +1,30 @@
+High Quality PBR 3D Model, created for 3D visualization.
+
+Textures:
+- PBR textures 4096x4096 .jpg / Base Color / Metallic / Normal (DirectX) / Roughnes / Height
+- PBR textures 4096x4096 .jpg /Diffuse / Glossiness / Specular / Normal (DirectX)
+- textures made in Substance Painter
+
+File formats:
+- 3ds Max (Scanline): Standard mat: spec/gloss textures
+- 3ds Max (V-Ray 3.2): V-Ray mat: spec/gloss textures
+- obj: Standard mat: spec/gloss textures
+- fbx: Standard mat: spec/gloss textures
+- blend (Cycles): metal/roughnes textures
+
+Geometry:
+- Units: Centimeters
+- Polygons: 7584
+- Vertex: 7586
+- Triangles: 0
+- Quads: 7584
+- Ngons: 0
+- Vertex with more than 5 edges: 0
+
+Object:
+- Dimension cm: 24.0,036cm x 23,943cm x 23,943cm
+- Dimension inches: 9,463" x 9,427" x 9,427"
+- Model parts: 1
+- Material count: 1
+- XForm: Yes
+- BoxTrick: Yes
