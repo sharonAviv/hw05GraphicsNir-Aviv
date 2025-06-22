@@ -206,6 +206,51 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// Basketball with seams (no UV mapping)
+const ballRadius = 0.123;
+const ballGeometry = new THREE.SphereGeometry(ballRadius, 32, 32);
+const ballMaterial = new THREE.MeshPhongMaterial({
+  color: 0xd35400,  // Basketball orange
+  shininess: 60
+});
+const ball = new THREE.Mesh(ballGeometry, ballMaterial);
+ball.castShadow = true;
+ball.position.set(0, ballRadius + 0.1, 0); // On court
+scene.add(ball);
+
+// Black seam material
+const seamMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
+
+// Helper: creates a circle of given radius in given plane
+function createSeamCircle(radius, segments, axis) {
+  const points = [];
+  for (let i = 0; i <= segments; i++) {
+    const theta = (i / segments) * Math.PI * 2;
+    const x = Math.cos(theta) * radius;
+    const y = Math.sin(theta) * radius;
+
+    if (axis === 'x') points.push(new THREE.Vector3(0, x, y));
+    else if (axis === 'y') points.push(new THREE.Vector3(x, 0, y));
+    else points.push(new THREE.Vector3(x, y, 0)); // 'z'
+  }
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  return new THREE.LineLoop(geometry, seamMaterial);
+}
+
+// Add 3 seam circles: around x, y, and z axes
+const seamX = createSeamCircle(ballRadius, 64, 'x');
+const seamY = createSeamCircle(ballRadius, 64, 'y');
+const seamZ = createSeamCircle(ballRadius, 64, 'z');
+
+// Position them same as ball
+seamX.position.copy(ball.position);
+seamY.position.copy(ball.position);
+seamZ.position.copy(ball.position);
+
+scene.add(seamX);
+scene.add(seamY);
+scene.add(seamZ);
+
 // Animation loop
 function animate() {
   requestAnimationFrame(animate);
