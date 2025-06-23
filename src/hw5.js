@@ -1,4 +1,3 @@
-// import * as THREE from 'three';
 import { OrbitControls } from './OrbitControls.js'
 
 const scene = new THREE.Scene();
@@ -84,7 +83,7 @@ function createThreePointLine(xOffset) {
     direction < 0 ? angle : Math.PI + angle,
     false
   );
-  const arcPoints = arcCurve.getPoints(64).map(p => new THREE.Vector3(p.x, yHeight, p.y));
+  const arcPoints = arcCurve.getPoints(256).map(p => new THREE.Vector3(p.x, yHeight, p.y));
   const arcGeometry = new THREE.BufferGeometry().setFromPoints(arcPoints);
   scene.add(new THREE.Line(arcGeometry, lineMaterial));
 
@@ -120,7 +119,7 @@ function createHoop(xOffset) {
   const backboardHeight = 1.05;
   const backboardThickness = 0.05;
 
-  const rimRadius = 0.45;
+  const rimRadius = 0.3;
   const rimThickness = 0.05;
   const netLength = 0.5;
 
@@ -136,20 +135,40 @@ function createHoop(xOffset) {
   //
   const poleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 4);
   const pole = new THREE.Mesh(poleGeometry, supportMaterial);
-  pole.position.set(xOffset, 2, 0);
+  pole.position.set(xOffset+0.1, 2, 0);
   scene.add(pole);
 
   //
-  // SUPPORT ARM (same length and direction as before)
-  //
-  const rimOffset = (backboardThickness / 2) + (rimThickness / 2) + 0.02;
-  const armLength = 0.4; // fixed value preserving 1/3 previous arm length
-  const armEndX = pole.position.x + direction * armLength;
+  // ------------------------------------------------------------------
+  // SUPPORT ARM  – now a thick grey cylinder במקום קו דק
+  // ------------------------------------------------------------------
+  const rimOffset = (backboardThickness / 2) + (rimThickness / 2);
+  const armLength = 0.4;                      // אותו אורך
+  const armEndX   = pole.position.x + direction * armLength;
 
-  const armStart = new THREE.Vector3(pole.position.x, yHeight + 0.5, 0);
-  const armEnd = new THREE.Vector3(armEndX, yHeight, 0);
-  const armGeo = new THREE.BufferGeometry().setFromPoints([armStart, armEnd]);
-  scene.add(new THREE.Line(armGeo, lineMaterial));
+  const armStart  = new THREE.Vector3(pole.position.x, yHeight, 0);
+  const armEnd    = new THREE.Vector3(armEndX,        yHeight,       0);
+
+  // vector, midpoint, length
+  const armVec  = new THREE.Vector3().subVectors(armEnd, armStart);
+  const armLen  = armVec.length();
+  const armMid  = new THREE.Vector3().addVectors(armStart, armEnd).multiplyScalar(0.5);
+
+  // thick cylinder (radius 7 cm)
+  const armGeom = new THREE.CylinderGeometry(0.07, 0.07, armLen, 16);
+  const armMat  = new THREE.MeshPhongMaterial({ color: new THREE.Color(0x555555).convertSRGBToLinear() });
+  const armMesh = new THREE.Mesh(armGeom, armMat);
+  armMesh.castShadow = true;
+
+  // align cylinder with the vector armVec (default up-vector is +Y)
+  armMesh.quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 1, 0),
+    armVec.clone().normalize()
+  );
+  armMesh.position.copy(armMid);
+  scene.add(armMesh);
+  // ------------------------------------------------------------------
+
 
   //
   // BACKBOARD
@@ -158,7 +177,7 @@ function createHoop(xOffset) {
   const backboardMaterial = new THREE.MeshPhongMaterial({
     color: 0xffffff,
     transparent: true,
-    opacity: 0.6
+    opacity: 0.8
   });
   const backboard = new THREE.Mesh(backboardGeometry, backboardMaterial);
   backboard.rotation.y = -direction * Math.PI / 2;
@@ -169,7 +188,7 @@ function createHoop(xOffset) {
   // RIM
   //
   const rimGeometry = new THREE.TorusGeometry(rimRadius, rimThickness, 16, 100);
-  const rimMaterial = new THREE.MeshPhongMaterial({ color: 0xff8c00 });
+  const rimMaterial = new THREE.MeshPhongMaterial({ color: 0xff8c00 }); // כתום
   const rim = new THREE.Mesh(rimGeometry, rimMaterial);
   rim.rotation.x = Math.PI / 2;
   rim.position.set(armEndX + direction * rimOffset * 7, yHeight - 0.15, 0);
@@ -224,56 +243,105 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Define the base path to your texture folder relative to your JS file
-const TEXTURE_PATH = '/src/basketball-classic-ball/Tex_Metal_Rough/';
+/* -------------------  BALL – procedurally-generated texture  ------------------- */
+/* -------------------  BALL – 4 identical seams  ------------------- */
 
-// 1. Load the textures
-const textureLoader = new THREE.TextureLoader();
+/* --------------------  BALL – darker & rougher  -------------------- */
 
-// Load the specific texture files you listed
-const colorMap = textureLoader.load(TEXTURE_PATH + 'basketballball_bball_Mat_BaseColor.jpg',
-    // *** FIX 2a: Add onLoad callback for debugging ***
-    () => { console.log('BaseColor texture loaded successfully!'); },
-    undefined, // onProgress callback (not needed for this fix)
-    (error) => { console.error('Error loading BaseColor texture:', error); } // onError callback
-);
-// *** FIX 2b: Set the color space for the base color map ***
-colorMap.colorSpace = THREE.SRGBColorSpace; // This is essential for the PBR texture's color to show correctly
+const RADIUS = 0.123;  // 24.6 cm
 
-const normalMap = textureLoader.load(TEXTURE_PATH + 'basketballball_bball_Mat_Normal.jpg',
-    () => { console.log('Normal texture loaded successfully!'); },
-    undefined,
-    (error) => { console.error('Error loading Normal texture:', error); }
-);
-const roughnessMap = textureLoader.load(TEXTURE_PATH + 'basketballball_bball_Mat_Roughness.jpg',
-    () => { console.log('Roughness texture loaded successfully!'); },
-    undefined,
-    (error) => { console.error('Error loading Roughness texture:', error); }
-);
+/* texture generator
+   – בסיס כתום־כהה
+   – “גרגירי גומי” צפופים יותר
+   – תפרים שחורים דקים מאוד                                  */
+function makeBasketballTexture(res = 1024) {
+  const c  = document.createElement('canvas');
+  c.width  = c.height = res;
+  const ctx = c.getContext('2d');
 
-const ballRadius = 0.123;
-// Increased segments for a smoother spherical appearance with the detailed textures
-const ballGeometry = new THREE.SphereGeometry(ballRadius, 64, 64);
+  /* granular base -------------------------------------------------------- */
+  const tile = document.createElement('canvas');
+  tile.width = tile.height = 6;
+  const tctx = tile.getContext('2d');
 
-// 2. Create a MeshStandardMaterial (for PBR)
-const ballMaterial = new THREE.MeshStandardMaterial({
-    map: colorMap,          // Apply the base color texture (this includes the orange and black seams)
-    normalMap: normalMap,    // Apply the normal map for realistic surface bumps and seam depth
-    roughnessMap: roughnessMap, // Apply the roughness map for surface shininess/dullness variations
-    // metalnessMap: metallicMap, // Uncomment if you decide to use the metallic map for subtle effects
-    metalness: 0.0,         // Basketballs are not metallic, so set this to 0
-    // You can fine-tune roughness here if the map doesn't provide enough or you want a base level:
-    // roughness: 0.8, // This value will blend with the roughnessMap
+  // כהה יותר
+  tctx.fillStyle = '#a04f1d';                    // כהה-כתום
+  tctx.fillRect(0, 0, 6, 6);
+
+  // 3 נקודות כהות ל"גרגריות"
+  tctx.fillStyle = '#793a14';
+  [[1.5,1.5],[4,2],[2,4]].forEach(([x,y])=>{
+    tctx.beginPath(); tctx.arc(x, y, 0.9, 0, Math.PI*2); tctx.fill();
+  });
+
+  ctx.fillStyle = ctx.createPattern(tile, 'repeat');
+  ctx.fillRect(0, 0, res, res);
+
+  /* seams ---------------------------------------------------------------- */
+  ctx.fillStyle = '#000';                       // שחור
+  const w = res * 0.02;                         // 2 %  ← דק מאוד
+
+  // שני קווי רוחב – 40 % ו-60 %
+  [0.4, 0.6].forEach(v => ctx.fillRect(0, res*v - w/2, res, w));
+
+  // ארבעה קווי אורך – U = 0, 0.25, 0.5, 0.75
+  [0, 0.25, 0.5, 0.75].forEach(u => {
+    ctx.fillRect(res*u - w/2, 0, w, res);
+    if (u === 0) ctx.fillRect(res - w/2, 0, w, res); // UV wrap seam
+  });
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.encoding   = THREE.sRGBEncoding;
+  tex.anisotropy = 8;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+/* textures */
+const colorMap = makeBasketballTexture();
+const bumpMap  = colorMap.clone();          // same canvas for bumps
+bumpMap.encoding = THREE.LinearEncoding;
+
+/* geometry + material */
+const geo = new THREE.SphereGeometry(RADIUS, 128, 128);
+const mat = new THREE.MeshStandardMaterial({
+  map        : colorMap,
+  bumpMap    : bumpMap,
+  bumpScale  : 0.03,   // הרבה יותר מחוספס
+  roughness  : 0.95,
+  metalness  : 0
 });
 
-const ball = new THREE.Mesh(ballGeometry, ballMaterial);
-ball.castShadow = true; // Essential if you plan to have lights cast shadows
-
-// Your current position setting, kept as requested
-ball.position.set(0, ballRadius + 0.1, 0); // On court
-
-// Add the ball to your scene (assuming 'scene' is defined elsewhere in your code)
+/* mesh */
+const ball = new THREE.Mesh(geo, mat);
+ball.castShadow = true;
+ball.position.set(0, 2*RADIUS -0.01 , 0);
 scene.add(ball);
+
+
+
+/* ----------------------------------------------------------------------- */
+
+
+
+// === extra UI hooks ===
+const scoreBox   = document.getElementById('score-ui');
+const controlsUI = document.getElementById('controls-ui');
+const orbitText  = document.getElementById('orbit-status');
+
+// update orbit status without touching old instructionsElement
+document.addEventListener('keydown', e => {
+  if (e.key === 'o' || e.key === 'O') {
+    orbitText.textContent =
+      `Orbit camera: ${isOrbitEnabled ? 'ON' : 'OFF'} (press O to toggle)`;
+  }
+});
+
+// placeholder: whenever you change score in future, call this helper
+function setScore(val){
+  document.getElementById('home-score').textContent = val;
+}
+
 
 // Animation loop
 function animate() {
