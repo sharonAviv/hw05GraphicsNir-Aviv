@@ -30,85 +30,120 @@ renderer.shadowMap.enabled = true;
 
 // Court builder
 function createBasketballCourt() {
-  // Court base (30 x 15 = 2:1 ratio)
-  // *** FIX 1c: Convert MeshPhongMaterial colors to linear ***
   const courtGeometry = new THREE.BoxGeometry(30, 0.2, 15);
   const courtMaterial = new THREE.MeshPhongMaterial({ 
-    color: new THREE.Color(0xc68642).convertSRGBToLinear(), // Convert court color
+    color: new THREE.Color(0xc68642).convertSRGBToLinear(),
     shininess: 50 
   });
   const court = new THREE.Mesh(courtGeometry, courtMaterial);
   court.receiveShadow = true;
   scene.add(court);
 
-  // Line material (white lines)
-  // *** FIX 1c: Convert LineBasicMaterial colors to linear ***
   const lineMaterial = new THREE.LineBasicMaterial({ color: new THREE.Color(0xffffff).convertSRGBToLinear() });
 
-  // Center Line
+  // Center line
   const centerLineGeometry = new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(0, 0.11, -7.5),
     new THREE.Vector3(0, 0.11, 7.5)
   ]);
-  const centerLine = new THREE.Line(centerLineGeometry, lineMaterial);
-  scene.add(centerLine);
+  scene.add(new THREE.Line(centerLineGeometry, lineMaterial));
 
-  // Center Circle
+  // Center circle
   const centerCircleRadius = 1.8;
-  const centerCircleSegments = 64;
   const centerCirclePath = new THREE.Path();
   centerCirclePath.absarc(0, 0, centerCircleRadius, 0, Math.PI * 2, false);
-  const centerCirclePoints = centerCirclePath.getPoints(centerCircleSegments);
-  const centerCircleGeometry = new THREE.BufferGeometry().setFromPoints(
-    centerCirclePoints.map(p => new THREE.Vector3(p.x, 0.11, p.y))
-  );
-  const centerCircle = new THREE.LineLoop(centerCircleGeometry, lineMaterial);
-  scene.add(centerCircle);
+  const centerPoints = centerCirclePath.getPoints(64).map(p => new THREE.Vector3(p.x, 0.11, p.y));
+  const centerGeometry = new THREE.BufferGeometry().setFromPoints(centerPoints);
+  scene.add(new THREE.LineLoop(centerGeometry, lineMaterial));
 
-  // Full Three-point lines (arc + 2 side lines)
-function createThreePointLine(xOffset) {
-  const radius = 6.75;
-  const sideOffset = 4.7;
-  const yHeight = 0.201;
+  // 3-point arcs
+  createThreePointLine(-15);
+  createThreePointLine(15);
 
-  const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
-  const direction = -1 * Math.sign(xOffset);
-  const angle = Math.acos(sideOffset / radius);
+  // Free-throw circles
+  createFreeThrowCircle(-9.5);
+  createFreeThrowCircle(9.5);
 
-  // Arc: flipped horizontally
-  const arcCurve = new THREE.EllipseCurve(
-    -xOffset, 0,
-    radius, radius,
-    direction < 0 ? -angle : Math.PI - angle,
-    direction < 0 ? angle : Math.PI + angle,
-    false
-  );
-  const arcPoints = arcCurve.getPoints(256).map(p => new THREE.Vector3(p.x, yHeight, p.y));
-  const arcGeometry = new THREE.BufferGeometry().setFromPoints(arcPoints);
-  scene.add(new THREE.Line(arcGeometry, lineMaterial));
+  // Key areas
+  createKeyArea(-14, -9.5);
+  createKeyArea(14, 9.5);
 
-  // Side lines
-  const sideZ1 = -sideOffset;
-  const sideZ2 = sideOffset;
-  const arcX =  xOffset + direction * radius * Math.cos(angle);
+  // Optional: boundary
+  createBoundaryLines();
 
-  const leftSide = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(xOffset, yHeight, sideZ1),
-    new THREE.Vector3(arcX, yHeight, sideZ1)
-  ]);
-  scene.add(new THREE.Line(leftSide, lineMaterial));
+  // --- helper functions ---
+  function createThreePointLine(xOffset) {
+    const radius = 6.75;
+    const sideOffset = 4.7;
+    const yHeight = 0.201;
+    const direction = -1 * Math.sign(xOffset);
+    const angle = Math.acos(sideOffset / radius);
 
-  const rightSide = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(arcX, yHeight, sideZ2),
-    new THREE.Vector3(xOffset, yHeight, sideZ2)
-  ]);
-  scene.add(new THREE.Line(rightSide, lineMaterial));
+    const arcCurve = new THREE.EllipseCurve(
+      -xOffset, 0,
+      radius, radius,
+      direction < 0 ? -angle : Math.PI - angle,
+      direction < 0 ? angle : Math.PI + angle,
+      false
+    );
+    const arcPoints = arcCurve.getPoints(256).map(p => new THREE.Vector3(p.x, yHeight, p.y));
+    const arcGeometry = new THREE.BufferGeometry().setFromPoints(arcPoints);
+    scene.add(new THREE.Line(arcGeometry, lineMaterial));
+
+    const arcX = xOffset + direction * radius * Math.cos(angle);
+    const sideZ1 = -sideOffset;
+    const sideZ2 = sideOffset;
+
+    const leftLine = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(xOffset, yHeight, sideZ1),
+      new THREE.Vector3(arcX, yHeight, sideZ1)
+    ]);
+    scene.add(new THREE.Line(leftLine, lineMaterial));
+
+    const rightLine = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(arcX, yHeight, sideZ2),
+      new THREE.Vector3(xOffset, yHeight, sideZ2)
+    ]);
+    scene.add(new THREE.Line(rightLine, lineMaterial));
+  }
+
+  function createFreeThrowCircle(centerX) {
+    const radius = 1.8;
+    const circlePath = new THREE.Path();
+    circlePath.absarc(centerX, 0, radius, 0, Math.PI * 2, false);
+    const points = circlePath.getPoints(64).map(p => new THREE.Vector3(p.x, 0.11, p.y));
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    scene.add(new THREE.LineLoop(geometry, lineMaterial));
+  }
+
+  function createKeyArea(baselineX, freeThrowX) {
+    const halfWidth = 1.8;
+    const y = 0.11;
+    const points = [
+      new THREE.Vector3(baselineX, y, -halfWidth),
+      new THREE.Vector3(freeThrowX, y, -halfWidth),
+      new THREE.Vector3(freeThrowX, y, halfWidth),
+      new THREE.Vector3(baselineX, y, halfWidth),
+      new THREE.Vector3(baselineX, y, -halfWidth),
+    ];
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    scene.add(new THREE.Line(geometry, lineMaterial));
+  }
+
+  function createBoundaryLines() {
+    const zMin = -7.5, zMax = 7.5, xMin = -15, xMax = 15, y = 0.11;
+    const corners = [
+      new THREE.Vector3(xMin, y, zMin),
+      new THREE.Vector3(xMax, y, zMin),
+      new THREE.Vector3(xMax, y, zMax),
+      new THREE.Vector3(xMin, y, zMax),
+      new THREE.Vector3(xMin, y, zMin),
+    ];
+    const geometry = new THREE.BufferGeometry().setFromPoints(corners);
+    scene.add(new THREE.Line(geometry, lineMaterial));
+  }
 }
 
-
-  createThreePointLine(-15); // Left
-  createThreePointLine(15);  // Right
-}
 
 // Build court
 createBasketballCourt();
