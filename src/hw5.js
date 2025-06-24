@@ -60,13 +60,13 @@ function createBasketballCourt() {
   createThreePointLine(-15);
   createThreePointLine(15);
 
-  // Free-throw circles
-  createFreeThrowCircle(-9.5);
-  createFreeThrowCircle(9.5);
+  // Free-throw circles - FIXED: Moved closer to hoops
+  createFreeThrowCircle(-11.5);
+  createFreeThrowCircle(11.5);
 
-  // Key areas
-  createKeyArea(-14, -9.5);
-  createKeyArea(14, 9.5);
+  // Key areas - FIXED: Much narrower and repositioned
+  createKeyArea(-15, -11.5);
+  createKeyArea(15, 11.5);
 
   // Optional: boundary
   createBoundaryLines();
@@ -90,9 +90,9 @@ function createBasketballCourt() {
     const arcGeometry = new THREE.BufferGeometry().setFromPoints(arcPoints);
     scene.add(new THREE.Line(arcGeometry, lineMaterial));
 
-    const arcX = xOffset + direction * radius * Math.cos(angle);
     const sideZ1 = -sideOffset;
     const sideZ2 = sideOffset;
+    const arcX = xOffset + direction * radius * Math.cos(angle);
 
     const leftLine = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(xOffset, yHeight, sideZ1),
@@ -107,8 +107,9 @@ function createBasketballCourt() {
     scene.add(new THREE.Line(rightLine, lineMaterial));
   }
 
+  // FIXED: Smaller free throw circle
   function createFreeThrowCircle(centerX) {
-    const radius = 1.8;
+    const radius = 1.2; // FIXED: Reduced from 1.8 to 1.2
     const circlePath = new THREE.Path();
     circlePath.absarc(centerX, 0, radius, 0, Math.PI * 2, false);
     const points = circlePath.getPoints(64).map(p => new THREE.Vector3(p.x, 0.11, p.y));
@@ -116,8 +117,9 @@ function createBasketballCourt() {
     scene.add(new THREE.LineLoop(geometry, lineMaterial));
   }
 
+  // FIXED: Much narrower key area
   function createKeyArea(baselineX, freeThrowX) {
-    const halfWidth = 1.8;
+    const halfWidth = 1.2; 
     const y = 0.11;
     const points = [
       new THREE.Vector3(baselineX, y, -halfWidth),
@@ -287,7 +289,7 @@ const RADIUS = 0.123;  // 24.6 cm
 
 /* texture generator
    – בסיס כתום־כהה
-   – “גרגירי גומי” צפופים יותר
+   – "גרגירי גומי" צפופים יותר
    – תפרים שחורים דקים מאוד                                  */
 function makeBasketballTexture(res = 1024) {
   const c  = document.createElement('canvas');
