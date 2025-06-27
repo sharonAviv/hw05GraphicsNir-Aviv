@@ -73,7 +73,7 @@ function createBasketballCourt() {
 
   // --- helper functions ---
   function createThreePointLine(xOffset) {
-    const radius = 6.75;
+    const radius = 6.65;
     const sideOffset = 4.7;
     const yHeight = 0.201;
     const direction = -1 * Math.sign(xOffset);
