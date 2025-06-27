@@ -173,6 +173,7 @@ function createHoop(xOffset) {
   const poleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 4);
   const pole = new THREE.Mesh(poleGeometry, supportMaterial);
   pole.position.set(xOffset+0.1, 2, 0);
+  pole.castShadow = true;
   scene.add(pole);
 
   //
@@ -219,6 +220,7 @@ function createHoop(xOffset) {
   const backboard = new THREE.Mesh(backboardGeometry, backboardMaterial);
   backboard.rotation.y = -direction * Math.PI / 2;
   backboard.position.set(armEndX, yHeight, 0);
+  backboard.castShadow = true;
   scene.add(backboard);
 
   //
@@ -229,6 +231,7 @@ function createHoop(xOffset) {
   const rim = new THREE.Mesh(rimGeometry, rimMaterial);
   rim.rotation.x = Math.PI / 2;
   rim.position.set(armEndX + direction * rimOffset * 7, yHeight - 0.15, 0);
+  rim.castShadow = true;
   scene.add(rim);
 
   //
