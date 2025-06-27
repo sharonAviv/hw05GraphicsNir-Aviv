@@ -225,7 +225,7 @@ function createHoop(xOffset) {
   // RIM
   //
   const rimGeometry = new THREE.TorusGeometry(rimRadius, rimThickness, 16, 100);
-  const rimMaterial = new THREE.MeshPhongMaterial({ color: 0xff8c00 }); // כתום
+  const rimMaterial = new THREE.MeshPhongMaterial({ color: 0xcc3300 }); // כתום
   const rim = new THREE.Mesh(rimGeometry, rimMaterial);
   rim.rotation.x = Math.PI / 2;
   rim.position.set(armEndX + direction * rimOffset * 7, yHeight - 0.15, 0);
