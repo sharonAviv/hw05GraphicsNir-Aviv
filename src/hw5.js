@@ -7,15 +7,10 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// *** FIX 1a: Set renderer's output encoding for correct PBR color rendering ***
-// This is critical for the ball's MeshStandardMaterial to look correct.
-// However, it requires non-PBR materials' colors to be converted to linear space.
 renderer.outputEncoding = THREE.sRGBEncoding;
-renderer.toneMapping = THREE.ACESFilmicToneMapping; // Optional, but often improves PBR look
-renderer.toneMappingExposure = 1.2; // Adjust if the scene becomes too dark/bright after tone mapping
+renderer.toneMapping = THREE.ACESFilmicToneMapping; 
+renderer.toneMappingExposure = 1.2; 
 
-// *** FIX 1b: Convert scene background color to linear if needed ***
-// If 0x000000 (black) was already black, converting won't change much.
 scene.background = new THREE.Color(0x000000).convertSRGBToLinear(); 
 
 // Lighting
@@ -107,9 +102,8 @@ function createBasketballCourt() {
     scene.add(new THREE.Line(rightLine, lineMaterial));
   }
 
-  // FIXED: Smaller free throw circle
   function createFreeThrowCircle(centerX) {
-    const radius = 1.2; // FIXED: Reduced from 1.8 to 1.2
+    const radius = 1.2;
     const circlePath = new THREE.Path();
     circlePath.absarc(centerX, 0, radius, 0, Math.PI * 2, false);
     const points = circlePath.getPoints(64).map(p => new THREE.Vector3(p.x, 0.11, p.y));
@@ -117,7 +111,6 @@ function createBasketballCourt() {
     scene.add(new THREE.LineLoop(geometry, lineMaterial));
   }
 
-  // FIXED: Much narrower key area
   function createKeyArea(baselineX, freeThrowX) {
     const halfWidth = 1.2; 
     const y = 0.11;
@@ -162,7 +155,6 @@ function createHoop(xOffset) {
 
   const direction = -1 * Math.sign(xOffset); // -1 for left, +1 for right
 
- // *** FIX 1c: Convert LineBasicMaterial and MeshPhongMaterial colors to linear ***
  const lineMaterial = new THREE.LineBasicMaterial({ color: new THREE.Color(0xffffff).convertSRGBToLinear() });
  const netMaterial = new THREE.LineBasicMaterial({ color: new THREE.Color(0xffffff).convertSRGBToLinear() });
  const supportMaterial = new THREE.MeshPhongMaterial({ color: new THREE.Color(0x888888).convertSRGBToLinear() });
@@ -283,17 +275,9 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-/* -------------------  BALL – procedurally-generated texture  ------------------- */
-/* -------------------  BALL – 4 identical seams  ------------------- */
-
-/* --------------------  BALL – darker & rougher  -------------------- */
 
 const RADIUS = 0.123;  // 24.6 cm
 
-/* texture generator
-   – בסיס כתום־כהה
-   – "גרגירי גומי" צפופים יותר
-   – תפרים שחורים דקים מאוד                                  */
 function makeBasketballTexture(res = 1024) {
   const c  = document.createElement('canvas');
   c.width  = c.height = res;
@@ -304,11 +288,9 @@ function makeBasketballTexture(res = 1024) {
   tile.width = tile.height = 6;
   const tctx = tile.getContext('2d');
 
-  // כהה יותר
-  tctx.fillStyle = '#a04f1d';                    // כהה-כתום
+  tctx.fillStyle = '#a04f1d';
   tctx.fillRect(0, 0, 6, 6);
 
-  // 3 נקודות כהות ל"גרגריות"
   tctx.fillStyle = '#793a14';
   [[1.5,1.5],[4,2],[2,4]].forEach(([x,y])=>{
     tctx.beginPath(); tctx.arc(x, y, 0.9, 0, Math.PI*2); tctx.fill();
@@ -318,13 +300,11 @@ function makeBasketballTexture(res = 1024) {
   ctx.fillRect(0, 0, res, res);
 
   /* seams ---------------------------------------------------------------- */
-  ctx.fillStyle = '#000';                       // שחור
-  const w = res * 0.02;                         // 2 %  ← דק מאוד
+  ctx.fillStyle = '#000';
+  const w = res * 0.02;
 
-  // שני קווי רוחב – 40 % ו-60 %
   [0.4, 0.6].forEach(v => ctx.fillRect(0, res*v - w/2, res, w));
 
-  // ארבעה קווי אורך – U = 0, 0.25, 0.5, 0.75
   [0, 0.25, 0.5, 0.75].forEach(u => {
     ctx.fillRect(res*u - w/2, 0, w, res);
     if (u === 0) ctx.fillRect(res - w/2, 0, w, res); // UV wrap seam
@@ -347,7 +327,7 @@ const geo = new THREE.SphereGeometry(RADIUS, 128, 128);
 const mat = new THREE.MeshStandardMaterial({
   map        : colorMap,
   bumpMap    : bumpMap,
-  bumpScale  : 0.03,   // הרבה יותר מחוספס
+  bumpScale  : 0.03,
   roughness  : 0.95,
   metalness  : 0
 });

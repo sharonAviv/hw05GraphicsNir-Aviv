@@ -1,5 +1,9 @@
 # Exercise 5 – Basketball Court Infrastructure with THREE.js
 
+## Authors
+- Nir Shoham (ID 322657673)
+- Aviv Sharon (ID 203953039)
+
 ## Overview
 This exercise focuses on implementing the static infrastructure of a basketball court scene using THREE.js. You will create the court, hoops, and basketball, but WITHOUT physics, animation, or interactive controls. This is the foundation for the next exercise (HW06) which will add the interactive elements.
 
@@ -33,11 +37,21 @@ This exercise focuses on implementing the static infrastructure of a basketball 
    - HTML containers for future controls display  
    - Basic CSS styling for UI elements
 
+## Additional Features Implemented
+- Free throw lines
+- Key area
+- Textured surfaces for basketball
+
 ## Technical Requirements
 - All objects should cast and receive shadows
 - Use appropriate meshes and materials for each object
 - The scene should be responsive when the browser window is resized
 - Basketball must remain STATIC (no physics or movement)
+
+## How to Run Implementation
+Use the following command:
+   node index.js
+(as in the instructions)
 
 ## IMPORTANT NOTE
 **Physics-based movement, interactive controls (arrow keys, spacebar), shooting mechanics, and scoring systems will be implemented in the next exercise (HW06). Do NOT implement these features in HW05.**
